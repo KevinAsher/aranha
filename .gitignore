@@ -1,3 +1,4 @@
 .vscode/
 build/
+web-server/venv/lib/python3.7/site-packages/pip-19.0.3-py3.7.egg/pip/_vendor/
 

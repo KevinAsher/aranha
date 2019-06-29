@@ -21,20 +21,40 @@
   The document describes in detail how to operate.
    ---------------------------------------------------------------------------*/
 
+// modified by Regis for spider project
+
 /* Includes ------------------------------------------------------------------*/
-#include <ir_Lego_PF_BitStreamEncoder.h>
 #include <boarddefs.h>
-#include <IRremoteInt.h>
+#include <ir_Lego_PF_BitStreamEncoder.h>
 #include <IRremote.h>
-// modified by Regis for spider project, 2015/09/11
-#include <Servo.h>       //to define and control servos
-#include <FlexiTimer2.h> //to set a timer to manage all servos
+#include <IRremoteInt.h>
+#include <Servo.h>    //to define and control servos
+#include <FlexiTimer2.h>//to set a timer to manage all servos
+#include <SoftwareSerial.h>
+
+#define STAND 0xFF02FD      // PLAY/PAUSE
+#define FORWARD 0xFF629D    // VOL+
+#define BACK 0xFFA857       // VOL-
+#define LEFT 0xFF22DD       // <<
+#define RIGHT 0xFFC23D      // >>
+#define SIT 0xFF9867        // EQ
+#define BODY_DANCE 0xFF18E7 // 2
+#define HAND_WAVE 0xFF38C7  // 5
 
 /* Servos --------------------------------------------------------------------*/
 //define 12 servos for 4 legs
 Servo servo[4][3];
 //define servos' ports
-const int servo_pin[4][3] = {{2, 3, 4}, {5, 6, 7}, {8, 9, 10}, {11, 12, 13}};
+const int servo_pin[4][3] = { {2, 3, 4}, {5, 6, 7}, {8, 9, 10}, {11, 12, 13} };
+
+/*
+  - Setup IR
+   ---------------------------------------------------------------------------*/
+  IRrecv irrecv(A0);
+  decode_results results;
+
+/*
+
 /* Size of the robot ---------------------------------------------------------*/
 const float length_a = 55;
 const float length_b = 77.5;
@@ -45,18 +65,17 @@ const float z_absolute = -28;
 const float z_default = -50, z_up = -30, z_boot = z_absolute;
 const float x_default = 62, x_offset = 0;
 const float y_start = 0, y_step = 40;
-const float y_default = x_default;
 /* variables for movement ----------------------------------------------------*/
 volatile float site_now[4][3];    //real-time coordinates of the end of each leg
 volatile float site_expect[4][3]; //expected coordinates of the end of each leg
-float temp_speed[4][3];           //each axis' speed, needs to be recalculated before each movement
-float move_speed;                 //movement speed
-float speed_multiple = 1;         //movement speed multiple
+float temp_speed[4][3];   //each axis' speed, needs to be recalculated before each movement
+float move_speed;     //movement speed
+float speed_multiple = 1; //movement speed multiple
 const float spot_turn_speed = 4;
 const float leg_move_speed = 8;
 const float body_move_speed = 3;
 const float stand_seat_speed = 1;
-volatile int rest_counter; //+1/0.02s, for automatic rest
+volatile int rest_counter;      //+1/0.02s, for automatic rest
 //functions' parameter
 const float KEEP = 255;
 //define PI for calculation
@@ -74,64 +93,9 @@ const float turn_x0 = turn_x1 - temp_b * cos(temp_alpha);
 const float turn_y0 = temp_b * sin(temp_alpha) - turn_y1 - length_side;
 /* ---------------------------------------------------------------------------*/
 
-/*
-  - Variaveis globais
-   ---------------------------------------------------------------------------*/
-#define STAND 0xFF02FD      // PLAY/PAUSE
-#define FORWARD 0xFF629D    // VOL+
-#define BACK 0xFFA857       // VOL-
-#define LEFT 0xFF22DD       // <<
-#define RIGHT 0xFFC23D      // >>
-#define SIT 0xFF9867        // EQ
-#define BODY_DANCE 0xFF18E7 // 2
-#define HAND_WAVE 0xFF38C7  // 5
-
-/*
-  - Setup IR
-   ---------------------------------------------------------------------------*/
-IRrecv irrecv(A0);
-decode_results results;
+SoftwareSerial mySerial(0, 1); // RX, TX
 
 
-/*
-  - Functions
-   ---------------------------------------------------------------------------*/
-void servo_attach(void)
-{
-  for (int i = 0; i < 4; i++)
-  {
-    for (int j = 0; j < 3; j++)
-    {
-      servo[i][j].attach(servo_pin[i][j]);
-      delay(100);
-    }
-  }
-
-  // servo[0][0].attach(servo_pin[0][0]);
-  // servo[0][1].attach(servo_pin[0][1]);
-  // servo[0][2].attach(servo_pin[0][2]); //
-  // servo[1][0].attach(servo_pin[1][0]);
-  // servo[1][1].attach(servo_pin[1][1]); //
-  // servo[1][2].attach(servo_pin[1][2]);
-  // servo[2][0].attach(servo_pin[2][0]); //
-  // servo[2][1].attach(servo_pin[2][1]); //
-  // servo[2][2].attach(servo_pin[2][2]);
-  // servo[3][0].attach(servo_pin[3][0]);
-  // servo[3][1].attach(servo_pin[3][1]); //
-  // servo[3][2].attach(servo_pin[3][2]);
-}
-
-void servo_detach(void)
-{
-  for (int i = 0; i < 4; i++)
-  {
-    for (int j = 0; j < 3; j++)
-    {
-      servo[i][j].detach();
-      delay(100);
-    }
-  }
-}
 
 /*
   - sit
@@ -153,13 +117,17 @@ void sit(void)
    ---------------------------------------------------------------------------*/
 void stand(void)
 {
+  ////Serial.println("TESTE");
   move_speed = stand_seat_speed;
   for (int leg = 0; leg < 4; leg++)
   {
     set_site(leg, KEEP, KEEP, z_default);
   }
+  ////Serial.println("TESTE");
   wait_all_reach();
+  ////Serial.println("TESTE");
 }
+
 
 /*
   - spot turn to left
@@ -565,65 +533,7 @@ void hand_shake(int i)
   }
 }
 
-void head_up(int i)
-{
-  set_site(0, KEEP, KEEP, site_now[0][2] - i);
-  set_site(1, KEEP, KEEP, site_now[1][2] + i);
-  set_site(2, KEEP, KEEP, site_now[2][2] - i);
-  set_site(3, KEEP, KEEP, site_now[3][2] + i);
-  wait_all_reach();
-}
 
-void head_down(int i)
-{
-  set_site(0, KEEP, KEEP, site_now[0][2] + i);
-  set_site(1, KEEP, KEEP, site_now[1][2] - i);
-  set_site(2, KEEP, KEEP, site_now[2][2] + i);
-  set_site(3, KEEP, KEEP, site_now[3][2] - i);
-  wait_all_reach();
-}
-
-void body_dance(int i)
-{
-  float x_tmp;
-  float y_tmp;
-  float z_tmp;
-  float body_dance_speed = 2;
-  sit();
-  move_speed = 1;
-  set_site(0, x_default, y_default, KEEP);
-  set_site(1, x_default, y_default, KEEP);
-  set_site(2, x_default, y_default, KEEP);
-  set_site(3, x_default, y_default, KEEP);
-  wait_all_reach();
-  //stand();
-  set_site(0, x_default, y_default, z_default - 20);
-  set_site(1, x_default, y_default, z_default - 20);
-  set_site(2, x_default, y_default, z_default - 20);
-  set_site(3, x_default, y_default, z_default - 20);
-  wait_all_reach();
-  move_speed = body_dance_speed;
-  head_up(30);
-  for (int j = 0; j < i; j++)
-  {
-    if (j > i / 4)
-      move_speed = body_dance_speed * 2;
-    if (j > i / 2)
-      move_speed = body_dance_speed * 3;
-    set_site(0, KEEP, y_default - 20, KEEP);
-    set_site(1, KEEP, y_default + 20, KEEP);
-    set_site(2, KEEP, y_default - 20, KEEP);
-    set_site(3, KEEP, y_default + 20, KEEP);
-    wait_all_reach();
-    set_site(0, KEEP, y_default + 20, KEEP);
-    set_site(1, KEEP, y_default - 20, KEEP);
-    set_site(2, KEEP, y_default + 20, KEEP);
-    set_site(3, KEEP, y_default - 20, KEEP);
-    wait_all_reach();
-  }
-  move_speed = body_dance_speed;
-  head_down(30);
-}
 
 /*
   - microservos service /timer interrupt function/50Hz
@@ -640,9 +550,16 @@ void servo_service(void)
   {
     for (int j = 0; j < 3; j++)
     {
-      if (abs(site_now[i][j] - site_expect[i][j]) >= abs(temp_speed[i][j]))
+      if (abs(site_now[i][j] - site_expect[i][j]) >= abs(temp_speed[i][j])){
+        //Serial.print("NOW: ");
+        ////Serial.println(site_now[i][j]);
+        //Serial.print("EXPECT: ");
+        ////Serial.println(site_expect[i][j]);
+        //Serial.print("SPEED: ");
+        ////Serial.println(temp_speed[i][j]);
+        ////Serial.println("---------------------");
         site_now[i][j] += temp_speed[i][j];
-      else
+      }else
         site_now[i][j] = site_expect[i][j];
     }
 
@@ -689,11 +606,22 @@ void set_site(int leg, float x, float y, float z)
    ---------------------------------------------------------------------------*/
 void wait_reach(int leg)
 {
-  while (1)
-    if (site_now[leg][0] == site_expect[leg][0])
-      if (site_now[leg][1] == site_expect[leg][1])
-        if (site_now[leg][2] == site_expect[leg][2])
+  ////Serial.println(leg);
+  ////Serial.println("TESTE5");
+  while (1){
+    ////Serial.println("TESTE6");
+    if (site_now[leg][0] == site_expect[leg][0]){
+      ////Serial.println("TESTE7");
+      if (site_now[leg][1] == site_expect[leg][1]){
+        ////Serial.println("TESTE8");
+        if (site_now[leg][2] == site_expect[leg][2]){
+          ////Serial.println("TESTE9");
           break;
+        }
+      }
+    }
+  }
+  ////Serial.println("TESTEWAIT");
 }
 
 /*
@@ -702,8 +630,13 @@ void wait_reach(int leg)
    ---------------------------------------------------------------------------*/
 void wait_all_reach(void)
 {
-  for (int i = 0; i < 4; i++)
+  ////Serial.println("TESTE2");
+  for (int i = 0; i < 4; i++){
+    ////Serial.println("TESTE3");
     wait_reach(i);
+    ////Serial.println("TESTE4");
+  }
+
 }
 
 /*
@@ -764,113 +697,178 @@ void polar_to_servo(int leg, float alpha, float beta, float gamma)
 }
 
 /*
-  - Setup Function
+  - setup function
    ---------------------------------------------------------------------------*/
 void setup()
 {
-  //start serial for debug
-  Serial.begin(115200);
-
+  ////Serial.println("Robot starts initialization");
   //initialize default parameter
-  // set_site(0, x_default - x_offset, y_start + y_step, z_boot);
-  // set_site(1, x_default - x_offset, y_start + y_step, z_boot);
-  // set_site(2, x_default + x_offset, y_start, z_boot);
-  // set_site(3, x_default + x_offset, y_start, z_boot);
-
-  // for (int i = 0; i < 4; i++)
-  // {
-  //   for (int j = 0; j < 3; j++)
-  //   {
-  //     site_now[i][j] = site_expect[i][j];
-  //   }
-  // }
-
+  set_site(0, x_default - x_offset, y_start + y_step, z_boot);
+  set_site(1, x_default - x_offset, y_start + y_step, z_boot);
+  set_site(2, x_default + x_offset, y_start, z_boot);
+  set_site(3, x_default + x_offset, y_start, z_boot);
+  for (int i = 0; i < 4; i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      site_now[i][j] = site_expect[i][j];
+    }
+  }
   //start servo service
   FlexiTimer2::set(20, servo_service);
   FlexiTimer2::start();
-  Serial.println("Servo service started");
-
-  //start IR
-
-  irrecv.enableIRIn();
-  Serial.println("Lendo dados do sensor...");
-  Serial.println("BIIITCH...");
-  Serial.println(A0);
-
+  ////Serial.println("Servo service started");
   //initialize servos
   servo_attach();
-  Serial.println("Servos initialized");
-  Serial.println("Robot initialization Complete");
-  Serial.println("Robot starts initialization");
+  ////Serial.println("Servos initialized");
+  ////Serial.println("Robot initialization Complete");
+  //start IR
+  //irrecv.enableIRIn();
+  ////Serial.println("Lendo dados do sensor...");
+  
+  //start serial for debug
+  Serial.begin(9600);
+  mySerial.begin(9600);
+  delay(5000);
+  
 }
 
+
+void servo_attach(void)
+{
+  for (int i = 0; i < 4; i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      servo[i][j].attach(servo_pin[i][j]);
+      delay(100);
+    }
+  }
+}
+
+void servo_detach(void)
+{
+  for (int i = 0; i < 4; i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      servo[i][j].detach();
+      delay(100);
+    }
+  }
+}
 /*
   - loop function
    ---------------------------------------------------------------------------*/
 void loop()
 {
+  //////Serial.println("Stand");
+  
+  //delay(2000);
+  //////Serial.println("Step forward");
+  //step_forward(5);
+  //delay(2000);
+  //////Serial.println("Step back");
+  //step_back(5);
+  //delay(2000);
+  // ////Serial.println("Turn left");
+  // turn_left(5);
+  // delay(2000);
+  // ////Serial.println("Turn right");
+  // turn_right(5);
+  // delay(2000);
+  // ////Serial.println("Hand wave");
+  // hand_wave(3);
+  // delay(2000);
+  // ////Serial.println("Hand wave");
+  // hand_shake(3);
+  // delay(2000);  
+  // ////Serial.println("Sit");
+  // sit();
+  // delay(5000);
 
-  // servo[0][2].write(0);
-  // servo[1][2].write(0);
-  servo[2][2].write(0);
-  // servo[3][2].write(0);
-  delay(3000);
-  // servo[0][2].write(60);
-  // servo[1][2].write(60);
-  servo[2][2].write(60);
-  // servo[3][2].write(60);
-  delay(1000);
-  // servo[0][0].write(5);
-  // delay(1000);
-  // servo[0][0].write(5);
-  // delay(1000);
-  // servo[0][0].write(5);
-  // delay(1000);
+ String IncomingString="";
+ boolean StringReady = false;
 
-  // if (irrecv.decode(&results))
-  // {
-  //   Serial.println(results.value, HEX);
-  //   irrecv.resume();
-  // }
-  // delay(1000);
+  while (mySerial.available()){
+   IncomingString=mySerial.readString();
+   StringReady= true;
+  }
+ 
+  if (StringReady){
+        if (IncomingString == "STAND"){
+         //Spider action   
+         stand();
+         delay(2000);
+         ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+         ////Serial.println("Received String: " + IncomingString);
+          
+        }
 
-  // if (irrecv.decode(&results)) {
-  //     Serial.println(results.value, HEX);
-  //     switch(results.value){
-  //       case STAND:
-  //         Serial.println("Stand init");
-  //         stand();
-  //         Serial.println("Stand end");
-  //         break;
-  //       case FORWARD:
-  //         Serial.println("Step forward");
-  //         // step_forward(5);
-  //         break;
-  //       case BACK:
-  //         Serial.println("Step back");
-  //         // step_back(5);
-  //         break;
-  //       case LEFT:
-  //         Serial.println("Turn left");
-  //         // turn_left(5);
-  //         break;
-  //       case RIGHT:
-  //         Serial.println("Turn right");
-  //         // turn_right(5);
-  //         break;
-  //       case HAND_WAVE:
-  //         Serial.println("Hand wave");
-  //         // hand_shake(3);
-  //         break;
-  //       case BODY_DANCE:
-  //         Serial.println("Body dance");
-  //         // body_dance(10);
-  //         break;
-  //       case SIT:
-  //         Serial.println("Sit");
-  //         // sit();
-  //         break;
-  //     }
-  //     irrecv.resume();
-  // }
+        if (IncomingString == "FORWARD"){
+          //Spider action 
+          step_forward(5);
+          delay(2000);
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");  
+          ////Serial.println("Received String: " + IncomingString);
+          
+        }
+
+        if (IncomingString == "BACK"){
+          //Spider action
+          step_back(5);
+          delay(2000);
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          ////Serial.println("Received String: " + IncomingString);
+          
+         }
+
+         if (IncomingString == "LEFT"){
+          //Spider action
+          body_left(5);
+          delay(2000);
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          ////Serial.println("Received String: " + IncomingString);
+          
+         }
+
+          if (IncomingString == "RIGHT"){
+          //Spider action
+          turn_right(5);
+          delay(2000);
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          ////Serial.println("Received String: " + IncomingString);
+         
+          }
+
+          if (IncomingString == "HAND_WAVE"){
+          //Spider action
+          hand_wave(3);
+          delay(2000);
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          ////Serial.println("Received String: " + IncomingString);
+         
+          }
+
+          if (IncomingString == "BODY_DANCE"){
+          //Spider action
+          // hand_shake(3);
+          // delay(2000); 
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          ////Serial.println("Received String: " + IncomingString);
+         
+          }
+
+          if (IncomingString == "SIT"){
+          //Spider action
+          sit();
+          delay(5000);
+          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          ////Serial.println("Received String: " + IncomingString);
+         
+          }
+    }
+    
+    //////Serial.println("Received String: " + IncomingString);
+  
 }
