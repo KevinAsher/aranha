@@ -24,13 +24,13 @@
 // modified by Regis for spider project
 
 /* Includes ------------------------------------------------------------------*/
-#include <boarddefs.h>
-#include <ir_Lego_PF_BitStreamEncoder.h>
-#include <IRremote.h>
-#include <IRremoteInt.h>
+// #include <boarddefs.h>
+// #include <ir_Lego_PF_BitStreamEncoder.h>
+// #include <IRremote.h>
+// #include <IRremoteInt.h>
 #include <Servo.h>    //to define and control servos
 #include <FlexiTimer2.h>//to set a timer to manage all servos
-#include <SoftwareSerial.h>
+// #include <SoftwareSerial.h> // de alguma maneira, afeta os motores
 
 #define STAND 0xFF02FD      // PLAY/PAUSE
 #define FORWARD 0xFF629D    // VOL+
@@ -50,8 +50,8 @@ const int servo_pin[4][3] = { {2, 3, 4}, {5, 6, 7}, {8, 9, 10}, {11, 12, 13} };
 /*
   - Setup IR
    ---------------------------------------------------------------------------*/
-  IRrecv irrecv(A0);
-  decode_results results;
+  // IRrecv irrecv(A0);
+  // decode_results results;
 
 /*
 
@@ -65,6 +65,7 @@ const float z_absolute = -28;
 const float z_default = -50, z_up = -30, z_boot = z_absolute;
 const float x_default = 62, x_offset = 0;
 const float y_start = 0, y_step = 40;
+const float y_default = x_default;
 /* variables for movement ----------------------------------------------------*/
 volatile float site_now[4][3];    //real-time coordinates of the end of each leg
 volatile float site_expect[4][3]; //expected coordinates of the end of each leg
@@ -93,7 +94,7 @@ const float turn_x0 = turn_x1 - temp_b * cos(temp_alpha);
 const float turn_y0 = temp_b * sin(temp_alpha) - turn_y1 - length_side;
 /* ---------------------------------------------------------------------------*/
 
-SoftwareSerial mySerial(0, 1); // RX, TX
+// SoftwareSerial mySerial(0, 1); // RX, TX
 
 
 
@@ -533,6 +534,65 @@ void hand_shake(int i)
   }
 }
 
+void head_up(int i)
+{
+  set_site(0, KEEP, KEEP, site_now[0][2] - i);
+  set_site(1, KEEP, KEEP, site_now[1][2] + i);
+  set_site(2, KEEP, KEEP, site_now[2][2] - i);
+  set_site(3, KEEP, KEEP, site_now[3][2] + i);
+  wait_all_reach();
+}
+
+void head_down(int i)
+{
+  set_site(0, KEEP, KEEP, site_now[0][2] + i);
+  set_site(1, KEEP, KEEP, site_now[1][2] - i);
+  set_site(2, KEEP, KEEP, site_now[2][2] + i);
+  set_site(3, KEEP, KEEP, site_now[3][2] - i);
+  wait_all_reach();
+}
+
+void body_dance(int i)
+{
+  float x_tmp;
+  float y_tmp;
+  float z_tmp;
+  float body_dance_speed = 2;
+  sit();
+  move_speed = 1;
+  set_site(0, x_default, y_default, KEEP);
+  set_site(1, x_default, y_default, KEEP);
+  set_site(2, x_default, y_default, KEEP);
+  set_site(3, x_default, y_default, KEEP);
+  wait_all_reach();
+  //stand();
+  set_site(0, x_default, y_default, z_default - 20);
+  set_site(1, x_default, y_default, z_default - 20);
+  set_site(2, x_default, y_default, z_default - 20);
+  set_site(3, x_default, y_default, z_default - 20);
+  wait_all_reach();
+  move_speed = body_dance_speed;
+  head_up(30);
+  for (int j = 0; j < i; j++)
+  {
+    if (j > i / 4)
+      move_speed = body_dance_speed * 2;
+    if (j > i / 2)
+      move_speed = body_dance_speed * 3;
+    set_site(0, KEEP, y_default - 20, KEEP);
+    set_site(1, KEEP, y_default + 20, KEEP);
+    set_site(2, KEEP, y_default - 20, KEEP);
+    set_site(3, KEEP, y_default + 20, KEEP);
+    wait_all_reach();
+    set_site(0, KEEP, y_default + 20, KEEP);
+    set_site(1, KEEP, y_default - 20, KEEP);
+    set_site(2, KEEP, y_default + 20, KEEP);
+    set_site(3, KEEP, y_default - 20, KEEP);
+    wait_all_reach();
+  }
+  move_speed = body_dance_speed;
+  head_down(30);
+}
 
 
 /*
@@ -701,6 +761,9 @@ void polar_to_servo(int leg, float alpha, float beta, float gamma)
    ---------------------------------------------------------------------------*/
 void setup()
 {
+  Serial.begin(9600);
+
+  // mySerial.begin(9600);
   ////Serial.println("Robot starts initialization");
   //initialize default parameter
   set_site(0, x_default - x_offset, y_start + y_step, z_boot);
@@ -727,9 +790,7 @@ void setup()
   ////Serial.println("Lendo dados do sensor...");
   
   //start serial for debug
-  Serial.begin(9600);
-  mySerial.begin(9600);
-  delay(5000);
+  // Serial.begin(9600);
   
 }
 
@@ -790,83 +851,84 @@ void loop()
  String IncomingString="";
  boolean StringReady = false;
 
-  while (mySerial.available()){
-   IncomingString=mySerial.readString();
+  while (Serial.available()){
+   IncomingString=Serial.readString();
    StringReady= true;
   }
- 
-  if (StringReady){
-        if (IncomingString == "STAND"){
-         //Spider action   
-         stand();
-         delay(2000);
-         ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-         ////Serial.println("Received String: " + IncomingString);
-          
-        }
 
-        if (IncomingString == "FORWARD"){
-          //Spider action 
-          step_forward(5);
-          delay(2000);
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");  
-          ////Serial.println("Received String: " + IncomingString);
-          
-        }
+ if (StringReady)
+ {
+   if (IncomingString == "STAND")
+   {
+     //Spider action
+     stand();
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
 
-        if (IncomingString == "BACK"){
-          //Spider action
-          step_back(5);
-          delay(2000);
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-          ////Serial.println("Received String: " + IncomingString);
-          
-         }
+   if (IncomingString == "FORWARD")
+   {
+     //Spider action
+     step_forward(5);
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
 
-         if (IncomingString == "LEFT"){
-          //Spider action
-          body_left(5);
-          delay(2000);
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-          ////Serial.println("Received String: " + IncomingString);
-          
-         }
+   if (IncomingString == "BACK")
+   {
+     //Spider action
+     step_back(5);
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
 
-          if (IncomingString == "RIGHT"){
-          //Spider action
-          turn_right(5);
-          delay(2000);
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-          ////Serial.println("Received String: " + IncomingString);
-         
-          }
+   if (IncomingString == "LEFT")
+   {
+     //Spider action
+     turn_left(5);
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
 
-          if (IncomingString == "HAND_WAVE"){
-          //Spider action
-          hand_wave(3);
-          delay(2000);
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-          ////Serial.println("Received String: " + IncomingString);
-         
-          }
+   if (IncomingString == "RIGHT")
+   {
+     //Spider action
+     turn_right(5);
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
 
-          if (IncomingString == "BODY_DANCE"){
-          //Spider action
-          // hand_shake(3);
-          // delay(2000); 
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-          ////Serial.println("Received String: " + IncomingString);
-         
-          }
+   if (IncomingString == "HAND_WAVE")
+   {
+     //Spider action
+     hand_wave(3);
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
 
-          if (IncomingString == "SIT"){
-          //Spider action
-          sit();
-          delay(5000);
-          ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
-          ////Serial.println("Received String: " + IncomingString);
-         
-          }
+   if (IncomingString == "BODY_DANCE")
+   {
+     //Spider action
+     body_dance(10);
+     delay(2000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
+
+   if (IncomingString == "SIT")
+   {
+     //Spider action
+     sit();
+     delay(5000);
+     ////Serial.println("@@@@@@@@@@@@@@@@@@@@@@@@@@");
+     ////Serial.println("Received String: " + IncomingString);
+   }
     }
     
     //////Serial.println("Received String: " + IncomingString);

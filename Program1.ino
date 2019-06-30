@@ -790,3 +790,29 @@ void polar_to_servo(int leg, float alpha, float beta, float gamma)
   servo[leg][2].write(gamma);
 }
 
+void setup()
+{
+  //start serial for debug
+  Serial.begin(115200);
+  Serial.println("Robot starts initialization");
+  //initialize default parameter
+  set_site(0, x_default - x_offset, y_start + y_step, z_boot);
+  set_site(1, x_default - x_offset, y_start + y_step, z_boot);
+  set_site(2, x_default + x_offset, y_start, z_boot);
+  set_site(3, x_default + x_offset, y_start, z_boot);
+  for (int i = 0; i < 4; i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      site_now[i][j] = site_expect[i][j];
+    }
+  }
+  //start servo service
+  FlexiTimer2::set(20, servo_service);
+  FlexiTimer2::start();
+  Serial.println("Servo service started");
+  //initialize servos
+  servo_attach();
+  Serial.println("Servos initialized");
+  Serial.println("Robot initialization Complete");
+}
